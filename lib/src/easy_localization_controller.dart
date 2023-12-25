@@ -1,7 +1,9 @@
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl_standalone.dart'
-    if (dart.library.html) 'package:intl/intl_browser.dart';
+import 'package:intl/intl_standalone.dart' if (dart.library.html) 'package:intl/intl_browser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'translations.dart';
@@ -14,14 +16,19 @@ class EasyLocalizationController extends ChangeNotifier {
   Locale? _fallbackLocale;
 
   final Function(FlutterError e) onLoadError;
+
   // ignore: prefer_typing_uninitialized_variables
-  final assetLoader;
+  final AssetLoader assetLoader;
   final String path;
+  final List<String> multiPaths;
+  final bool isMultiplePath;
   final bool useFallbackTranslations;
   final bool saveLocale;
   final bool useOnlyLangCode;
   Translations? _translations, _fallbackTranslations;
+
   Translations? get translations => _translations;
+
   Translations? get fallbackTranslations => _fallbackTranslations;
 
   EasyLocalizationController({
@@ -30,6 +37,8 @@ class EasyLocalizationController extends ChangeNotifier {
     required this.saveLocale,
     required this.assetLoader,
     required this.path,
+    required this.multiPaths,
+    required this.isMultiplePath,
     required this.useOnlyLangCode,
     required this.onLoadError,
     Locale? startLocale,
@@ -75,8 +84,7 @@ class EasyLocalizationController extends ChangeNotifier {
   }
 
   //Get fallback Locale
-  static Locale _getFallbackLocale(
-      List<Locale> supportedLocales, Locale? fallbackLocale) {
+  static Locale _getFallbackLocale(List<Locale> supportedLocales, Locale? fallbackLocale) {
     //If fallbackLocale not set then return first from supportedLocales
     if (fallbackLocale != null) {
       return fallbackLocale;
@@ -93,8 +101,7 @@ class EasyLocalizationController extends ChangeNotifier {
       if (useFallbackTranslations && _fallbackLocale != null) {
         Map<String, dynamic>? baseLangData;
         if (_locale.countryCode != null && _locale.countryCode!.isNotEmpty) {
-          baseLangData =
-              await loadBaseLangTranslationData(Locale(locale.languageCode));
+          baseLangData = await loadBaseLangTranslationData(Locale(locale.languageCode));
         }
         data = Map.from(await loadTranslationData(_fallbackLocale!));
         if (baseLangData != null) {
@@ -113,8 +120,47 @@ class EasyLocalizationController extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>?> loadBaseLangTranslationData(
-      Locale locale) async {
+  Future loadMultiTranslations() async {
+    Map<String, dynamic> data;
+    try {
+      data = Map.from(
+        (await loadMultiTranslationData(_locale)).reduce(
+          (value, element) => value..addAll(element),
+        ),
+      );
+      _translations = Translations(data);
+      if (useFallbackTranslations && _fallbackLocale != null) {
+        Map<String, dynamic>? baseLangData;
+        if (_locale.countryCode != null && _locale.countryCode!.isNotEmpty) {
+          baseLangData =
+              (await loadMultiBaseLangTranslationData(Locale(locale.languageCode))).reduce(
+            (value, element) => value?..addAll(element ?? {}),
+          );
+        }
+        data = Map.from(
+          (await loadMultiTranslationData(_fallbackLocale!)).reduce(
+            (value, element) => value..addAll(element),
+          ),
+        );
+        if(baseLangData != null) {
+          try {
+            data.addAll(baseLangData);
+          } on UnsupportedError {
+            data = Map.of(data)..addAll(baseLangData);
+          }
+        }
+        _fallbackTranslations = Translations(data);
+      }
+
+      log('dataString: ${jsonEncode(data)}');
+    } on FlutterError catch (e) {
+      onLoadError(e);
+    } catch (e) {
+      onLoadError(FlutterError(e.toString()));
+    }
+  }
+
+  Future<Map<String, dynamic>?> loadBaseLangTranslationData(Locale locale) async {
     try {
       return await loadTranslationData(Locale(locale.languageCode));
     } on FlutterError catch (e) {
@@ -138,11 +184,43 @@ class EasyLocalizationController extends ChangeNotifier {
     return data;
   }
 
+  Future<List<Map<String, dynamic>?>> loadMultiBaseLangTranslationData(Locale locale) async {
+    try {
+      return await loadMultiTranslationData(Locale(locale.languageCode));
+    } on FlutterError catch (e) {
+      // Disregard asset not found FlutterError when attempting to load base language fallback
+      EasyLocalization.logger.warning(e.message);
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> loadMultiTranslationData(Locale locale) async {
+    final data = <Map<String, dynamic>>[];
+
+    if (useOnlyLangCode) {
+      for (final path in multiPaths) {
+        final map = await assetLoader.load(path, Locale(locale.languageCode));
+        data.add(map ?? {});
+      }
+    } else {
+      for (final path in multiPaths) {
+        final map = await assetLoader.load(path, locale);
+        data.add(map ?? {});
+      }
+    }
+
+    return data;
+  }
+
   Locale get locale => _locale;
 
   Future<void> setLocale(Locale l) async {
     _locale = l;
-    await loadTranslations();
+    if (isMultiplePath) {
+      await loadMultiTranslations();
+    } else {
+      await loadTranslations();
+    }
     notifyListeners();
     EasyLocalization.logger('Locale $locale changed');
     await _saveLocale(_locale);
@@ -189,9 +267,7 @@ extension LocaleExtension on Locale {
     if (languageCode != locale.languageCode) {
       return false;
     }
-    if (countryCode != null &&
-        countryCode!.isNotEmpty &&
-        countryCode != locale.countryCode) {
+    if (countryCode != null && countryCode!.isNotEmpty && countryCode != locale.countryCode) {
       return false;
     }
     if (scriptCode != null && scriptCode != locale.scriptCode) {

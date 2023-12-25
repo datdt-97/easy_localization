@@ -29,12 +29,19 @@ dependencies:
 
   #custom loaders
 #fixme(DartAndrik): Commented due to [easy_localization_loader] package dependencies issue, uncomment after resolving.
-#  easy_localization_loader:
-#    git: https://github.com/aissat/easy_localization_loader.git
+  easy_localization_loader:
+    git: https://github.com/aissat/easy_localization_loader.git
+
+  core:
+    path: core
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+dependency_overrides:
+  easy_localization:
+    path: ../
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -48,6 +55,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - translations/
     - resources/langs/
   #  - images/a_dot_burr.jpeg
   #  - images/a_dot_ham.jpeg

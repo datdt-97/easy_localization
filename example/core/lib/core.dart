@@ -1,0 +1,5 @@
+library core;
+
+class Core {
+
+}

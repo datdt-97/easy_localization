@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization_loader/easy_localization_loader.dart';
 //import 'package:easy_localization_loader/easy_localization_loader.dart'; // import custom loaders
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -17,13 +18,19 @@ void main() async {
       Locale('de', 'DE'),
       Locale('ru', 'RU')
     ],
-    path: 'resources/langs',
+    // path: 'resources/langs',
+    multiPaths: [
+      'resources/langs',
+      'translations',
+      'packages/core/lib/presentation/resources/translations',
+    ],
+    isMultiplePath: true,
     child: MyApp(),
     // fallbackLocale: Locale('en', 'US'),
     // startLocale: Locale('de', 'DE'),
     // saveLocale: false,
-    // useOnlyLangCode: true,
-
+    useOnlyLangCode: true,
+    assetLoader: JsonAssetLoader(),
     // optional assetLoader default used is RootBundleAssetLoader which uses flutter's assetloader
     // install easy_localization_loader for enable custom loaders
     // assetLoader: RootBundleAssetLoader()
@@ -88,8 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (_) => LanguageView(), fullscreenDialog: true),
+                MaterialPageRoute(builder: (_) => LanguageView(), fullscreenDialog: true),
               );
             },
             child: Icon(
@@ -108,17 +114,13 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Text(
               LocaleKeys.gender_with_arg,
-              style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 19,
-                  fontWeight: FontWeight.bold),
+              style:
+                  TextStyle(color: Colors.grey.shade600, fontSize: 19, fontWeight: FontWeight.bold),
             ).tr(args: ['aissat'], gender: _gender ? 'female' : 'male'),
             Text(
               tr(LocaleKeys.gender, gender: _gender ? 'female' : 'male'),
-              style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold),
+              style:
+                  TextStyle(color: Colors.grey.shade600, fontSize: 15, fontWeight: FontWeight.bold),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -132,8 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
               flex: 1,
             ),
             Text(LocaleKeys.msg).tr(args: ['aissat', 'Flutter']),
-            Text(LocaleKeys.msg_named)
-                .tr(namedArgs: {'lang': 'Dart'}, args: ['Easy localization']),
+            Text(LocaleKeys.msg_named).tr(namedArgs: {'lang': 'Dart'}, args: ['Easy localization']),
             Text(LocaleKeys.clicked).plural(counter),
             TextButton(
               onPressed: () {
@@ -146,12 +147,9 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Text(
                 plural(LocaleKeys.amount, counter,
-                    format: NumberFormat.currency(
-                        locale: Intl.defaultLocale, symbol: '€')),
+                    format: NumberFormat.currency(locale: Intl.defaultLocale, symbol: '€')),
                 style: TextStyle(
-                    color: Colors.grey.shade900,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
+                    color: Colors.grey.shade900, fontSize: 18, fontWeight: FontWeight.bold)),
             SizedBox(
               height: 20,
             ),

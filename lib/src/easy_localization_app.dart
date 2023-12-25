@@ -41,7 +41,7 @@ class EasyLocalization extends StatefulWidget {
   /// @Default value false
   /// Example:
   /// ```
-  /// en.json //useOnlyLangCode: true
+  /// en-US.json //useOnlyLangCode: true
   /// en-US.json //useOnlyLangCode: false
   /// ```
   final bool useOnlyLangCode;
@@ -62,11 +62,21 @@ class EasyLocalization extends StatefulWidget {
   /// ```
   final String path;
 
+  /// Paths to your folder with localization files.
+  /// Example:
+  /// ```dart
+  /// path: 'assets/translations',
+  /// path: 'assets/translations/lang.csv',
+  /// ```
+  final List<String> multiPaths;
+
+  final bool isMultiplePath;
+
   /// Class loader for localization files.
   /// You can use custom loaders from [Easy Localization Loader](https://github.com/aissat/easy_localization_loader) or create your own class.
   /// @Default value `const RootBundleAssetLoader()`
   // ignore: prefer_typing_uninitialized_variables
-  final assetLoader;
+  final AssetLoader assetLoader;
 
   /// Save locale in device storage.
   /// @Default value true
@@ -80,7 +90,9 @@ class EasyLocalization extends StatefulWidget {
     Key? key,
     required this.child,
     required this.supportedLocales,
-    required this.path,
+    this.path = '',
+    this.multiPaths = const [],
+    this.isMultiplePath = false,
     this.fallbackLocale,
     this.startLocale,
     this.useOnlyLangCode = false,
@@ -89,7 +101,8 @@ class EasyLocalization extends StatefulWidget {
     this.saveLocale = true,
     this.errorWidget,
   })  : assert(supportedLocales.isNotEmpty),
-        assert(path.isNotEmpty),
+        assert(path.isNotEmpty ||
+            (multiPaths.isNotEmpty && multiPaths.every((element) => element.isNotEmpty))),
         super(key: key) {
     EasyLocalization.logger.debug('Start');
   }
@@ -129,6 +142,8 @@ class _EasyLocalizationState extends State<EasyLocalization> {
       useOnlyLangCode: widget.useOnlyLangCode,
       useFallbackTranslations: widget.useFallbackTranslations,
       path: widget.path,
+      multiPaths: widget.multiPaths,
+      isMultiplePath: widget.isMultiplePath,
       onLoadError: (FlutterError e) {
         setState(() {
           translationsLoadError = e;
@@ -162,6 +177,7 @@ class _EasyLocalizationState extends State<EasyLocalization> {
       delegate: _EasyLocalizationDelegate(
         localizationController: localizationController,
         supportedLocales: widget.supportedLocales,
+        isMultiplePath: widget.isMultiplePath,
       ),
     );
   }
@@ -195,8 +211,7 @@ class _EasyLocalizationProvider extends InheritedWidget {
 
   // _EasyLocalizationDelegate get delegate => parent.delegate;
 
-  _EasyLocalizationProvider(this.parent, this._localeState,
-      {Key? key, required this.delegate})
+  _EasyLocalizationProvider(this.parent, this._localeState, {Key? key, required this.delegate})
       : currentLocale = _localeState.locale,
         super(key: key, child: parent.child) {
     EasyLocalization.logger.debug('Init provider');
@@ -207,6 +222,7 @@ class _EasyLocalizationProvider extends InheritedWidget {
 
   /// Get fallback locale
   Locale? get fallbackLocale => parent.fallbackLocale;
+
   // Locale get startLocale => parent.startLocale;
 
   /// Change app locale
@@ -241,12 +257,12 @@ class _EasyLocalizationProvider extends InheritedWidget {
 class _EasyLocalizationDelegate extends LocalizationsDelegate<Localization> {
   final List<Locale>? supportedLocales;
   final EasyLocalizationController? localizationController;
+  final bool isMultiplePath;
 
-  ///  * use only the lang code to generate i18n file path like en.json or ar.json
+  ///  * use only the lang code to generate i18n file path like en-US.json or ar.json
   // final bool useOnlyLangCode;
 
-  _EasyLocalizationDelegate(
-      {this.localizationController, this.supportedLocales}) {
+  _EasyLocalizationDelegate({this.localizationController, this.supportedLocales, required this.isMultiplePath}) {
     EasyLocalization.logger.debug('Init Localization Delegate');
   }
 
@@ -257,7 +273,11 @@ class _EasyLocalizationDelegate extends LocalizationsDelegate<Localization> {
   Future<Localization> load(Locale value) async {
     EasyLocalization.logger.debug('Load Localization Delegate');
     if (localizationController!.translations == null) {
-      await localizationController!.loadTranslations();
+      if (isMultiplePath) {
+        await localizationController!.loadMultiTranslations();
+      } else {
+        await localizationController!.loadTranslations();
+      }
     }
 
     Localization.load(value,

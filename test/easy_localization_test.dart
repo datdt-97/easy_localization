@@ -25,7 +25,7 @@ void main() {
   group('localization', () {
     var r1 = EasyLocalizationController(
         forceLocale: const Locale('en'),
-        path: 'path/en.json',
+        path: 'path/en-US.json',
         supportedLocales: const [Locale('en')],
         useOnlyLangCode: true,
         useFallbackTranslations: false,
@@ -125,14 +125,14 @@ void main() {
       expect(
           Localization.load(const Locale('en'), translations: r1.translations),
           true);
-      expect(Localization.instance.tr('path'), 'path/en.json');
+      expect(Localization.instance.tr('path'), 'path/en-US.json');
     });
 
     test('load() respects useOnlyLangCode', () async {
       expect(
           Localization.load(const Locale('en'), translations: r1.translations),
           true);
-      expect(Localization.instance.tr('path'), 'path/en.json');
+      expect(Localization.instance.tr('path'), 'path/en-US.json');
 
       expect(
           Localization.load(const Locale('en', 'us'),
